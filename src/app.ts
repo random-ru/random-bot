@@ -102,13 +102,14 @@ bot.on('message', async (ctx) => {
   const user = await getUser(from.id)
 
   if (user) {
+    if (user.restricted) {
+      await ctx.deleteMessage()
+      return
+    }
+
     if (text?.startsWith('/random ') && user.telegramIsAdmin) {
       const [, command, ...args] = text.split(' ')
       return handleCommand(ctx, command, args)
-    }
-
-    if (user.restricted) {
-      await ctx.deleteMessage()
     }
 
     return // already checked
@@ -159,10 +160,8 @@ bot.on('message', async (ctx) => {
     await ctx.deleteMessage()
     console.info(`The user ${from.id} has been restricted`)
 
-    const userLink = generateUserLink(from, 'чмоне')
-
     const message = [
-      `Выдал read-only ${userLink}`,
+      `Выдал read-only ${generateUserLink(from, 'чмоне')}`,
       !trustChecked && `*Проверка через TrustAPI не пройдена*`,
       `Разблокировать: \`/random user unblock ${from.id}\``,
     ]
@@ -176,14 +175,17 @@ bot.on('message', async (ctx) => {
   }
 })
 
-const TelegramIdSchema = z.union([
+const TelegramIdOrSourceSchema = z.union([
   z.string().regex(/\d+/).transform(Number),
   z.literal('reply'),
 ])
 
 const UserSchema = z.object({
   command: z.literal('user'),
-  args: z.tuple([z.enum(['unblock', 'delete', 'trust']), TelegramIdSchema]),
+  args: z.tuple([
+    z.enum(['unblock', 'delete', 'trust']),
+    TelegramIdOrSourceSchema,
+  ]),
 })
 
 const CacheSchema = z.object({
@@ -195,7 +197,7 @@ const CommandSchema = z.discriminatedUnion('command', [UserSchema, CacheSchema])
 
 async function getTelegramId(
   ctx: Context,
-  telegramIdOrSource: z.infer<typeof TelegramIdSchema>,
+  telegramIdOrSource: z.infer<typeof TelegramIdOrSourceSchema>,
 ): Promise<number> {
   if (typeof telegramIdOrSource === 'number') {
     return telegramIdOrSource
@@ -287,7 +289,7 @@ async function handleCommand(ctx: Context, command: string, args: string[]) {
 
     if (action === 'clear') {
       userCache.clear()
-      await ctx.reply('Кэш очищен')
+      await ctx.reply('Господин, кэш очищен')
     }
   }
 }
