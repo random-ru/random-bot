@@ -5,7 +5,7 @@ import { prisma } from '@shared/db'
 import { env } from '@shared/env'
 import { createMemoryCache } from '@shared/lib/cache'
 import { Bot, Context } from 'grammy'
-import { User as TelegramUser } from 'grammy/types'
+import { ChatMember, User as TelegramUser } from 'grammy/types'
 import { z } from 'zod'
 
 const userCache = createMemoryCache<User>({
@@ -81,6 +81,12 @@ function generateUserLink(
   return `[${label}](tg://user?id=${telegramUser.id})`
 }
 
+function isAdmin(chatMember: ChatMember): boolean {
+  return (
+    chatMember.status === 'creator' || chatMember.status === 'administrator'
+  )
+}
+
 const bot = new Bot(env.telegram.botApiToken)
 
 bot.on('message', async (ctx) => {
@@ -110,12 +116,10 @@ bot.on('message', async (ctx) => {
 
   try {
     const chatMember = await ctx.getChatMember(from.id)
-    console.info('Checking new user:', chatMember)
+    console.info('Checking new user')
+    console.info(chatMember)
 
-    if (
-      chatMember.status === 'creator' ||
-      chatMember.status === 'administrator'
-    ) {
+    if (isAdmin(chatMember)) {
       await createUser(from, { telegramIsAdmin: true })
       return
     }
@@ -130,7 +134,8 @@ bot.on('message', async (ctx) => {
 
       console.info('Calculating TrustAnalytics for:', payload)
       const trustAnalytics = await TrustAPI.getTrustAnalytics(payload)
-      console.info('TrustAnalytics calculated:', trustAnalytics)
+      console.info('TrustAnalytics calculated')
+      console.info(trustAnalytics)
 
       const allowedVerdicts = [
         TrustVerdict.GoodStage,
@@ -166,17 +171,19 @@ bot.on('message', async (ctx) => {
 
     await ctx.reply(message, { parse_mode: 'Markdown' })
   } catch (error) {
-    console.info(`Failed to check user ${from.id}`)
+    console.info(`Failed to process message from ${from.id}`)
     console.error(error)
   }
 })
 
+const TelegramIdSchema = z.union([
+  z.string().regex(/\d+/).transform(Number),
+  z.literal('reply'),
+])
+
 const UserSchema = z.object({
   command: z.literal('user'),
-  args: z.tuple([
-    z.enum(['unblock', 'delete']),
-    z.string().regex(/\d+/).transform(Number),
-  ]),
+  args: z.tuple([z.enum(['unblock', 'delete', 'trust']), TelegramIdSchema]),
 })
 
 const CacheSchema = z.object({
@@ -185,6 +192,24 @@ const CacheSchema = z.object({
 })
 
 const CommandSchema = z.discriminatedUnion('command', [UserSchema, CacheSchema])
+
+async function getTelegramId(
+  ctx: Context,
+  telegramIdOrSource: z.infer<typeof TelegramIdSchema>,
+): Promise<number> {
+  if (typeof telegramIdOrSource === 'number') {
+    return telegramIdOrSource
+  }
+
+  const replyId = ctx.message?.reply_to_message?.from?.id
+
+  if (!replyId) {
+    await ctx.reply('Не удалось определить Telegram ID')
+    throw new Error('Telegram ID not found')
+  }
+
+  return replyId
+}
 
 async function handleCommand(ctx: Context, command: string, args: string[]) {
   const parse = CommandSchema.safeParse({ command, args })
@@ -199,16 +224,17 @@ async function handleCommand(ctx: Context, command: string, args: string[]) {
   }
 
   if (parse.data.command === 'user') {
-    const [action, telegramId] = parse.data.args
-
-    const user = await getUser(telegramId)
-
-    if (!user) {
-      await ctx.reply('Пользователь не найден')
-      return
-    }
+    const [action, telegramIdOrSource] = parse.data.args
+    const telegramId = await getTelegramId(ctx, telegramIdOrSource)
 
     if (action === 'unblock') {
+      const user = await getUser(telegramId)
+
+      if (!user) {
+        await ctx.reply('Пользователь не найден')
+        return
+      }
+
       if (!user.restricted) {
         await ctx.reply('У пользователя нет ограничений на отправку сообщений')
         return
@@ -227,8 +253,32 @@ async function handleCommand(ctx: Context, command: string, args: string[]) {
     }
 
     if (action === 'delete') {
+      const user = await getUser(telegramId)
+
+      if (!user) {
+        await ctx.reply('Пользователь не найден')
+        return
+      }
+
       await deleteUser(telegramId)
       await ctx.reply('Пользователь удален')
+    }
+
+    if (action === 'trust') {
+      const existingUser = await getUser(telegramId)
+
+      if (existingUser) {
+        await ctx.reply('Пользователь уже существует')
+        return
+      }
+
+      const chatMember = await ctx.getChatMember(telegramId)
+
+      await createUser(chatMember.user, {
+        telegramIsAdmin: isAdmin(chatMember),
+      })
+
+      await ctx.reply('Пользователь добавлен в базу')
     }
   }
 
