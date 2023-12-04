@@ -89,6 +89,10 @@ function isAdmin(chatMember: ChatMember): boolean {
 
 const bot = new Bot(env.telegram.botApiToken)
 
+const config = {
+  removeMessages: true,
+}
+
 bot.on('message', async (ctx) => {
   const { text, from, chat } = ctx.message
 
@@ -157,8 +161,11 @@ bot.on('message', async (ctx) => {
 
     await ctx.restrictChatMember(from.id, { can_send_messages: false })
     await createUser(from, { restricted: true })
-    await ctx.deleteMessage()
     console.info(`The user ${from.id} has been restricted`)
+
+    if (config.removeMessages) {
+      await ctx.deleteMessage()
+    }
 
     const message = [
       `Выдал read-only ${generateUserLink(from, 'чмоне')}`,
@@ -188,12 +195,31 @@ const UserSchema = z.object({
   ]),
 })
 
+const AnalyzeSchema = z.object({
+  command: z.literal('analyze'),
+  args: z.tuple([TelegramIdOrSourceSchema]),
+})
+
+const ConfigSchema = z.object({
+  command: z.literal('config'),
+  args: z.tuple([
+    z.literal('set'),
+    z.literal('removeMessages'),
+    z.string().transform((text) => text === 'true'),
+  ]),
+})
+
 const CacheSchema = z.object({
   command: z.literal('cache'),
   args: z.tuple([z.literal('clear')]),
 })
 
-const CommandSchema = z.discriminatedUnion('command', [UserSchema, CacheSchema])
+const CommandSchema = z.discriminatedUnion('command', [
+  UserSchema,
+  AnalyzeSchema,
+  ConfigSchema,
+  CacheSchema,
+])
 
 async function getTelegramId(
   ctx: Context,
@@ -281,6 +307,52 @@ async function handleCommand(ctx: Context, command: string, args: string[]) {
       })
 
       await ctx.reply('Пользователь добавлен в базу')
+    }
+  }
+
+  if (parse.data.command === 'analyze') {
+    const [telegramIdOrSource] = parse.data.args
+    const telegramId = await getTelegramId(ctx, telegramIdOrSource)
+
+    const messageId =
+      telegramIdOrSource === 'reply'
+        ? ctx.message?.reply_to_message?.message_id
+        : undefined
+
+    const payload = {
+      telegramId,
+      messageId,
+    }
+
+    try {
+      await ctx.reply(
+        `Начинаю расчет TrustAnalytics для: ${JSON.stringify(payload)}`,
+        { parse_mode: 'Markdown' },
+      )
+
+      console.info('Calculating TrustAnalytics for:', payload)
+      const trustAnalytics = await TrustAPI.getTrustAnalytics(payload)
+      console.info('TrustAnalytics calculated')
+      console.info(trustAnalytics)
+
+      await ctx.reply(
+        `TrustAnalytics:
+
+\`\`\`json
+${JSON.stringify(trustAnalytics, null, 2)}
+\`\`\``,
+        { parse_mode: 'Markdown' },
+      )
+    } catch {
+      await ctx.reply('Не удалось получить TrustAnalytics')
+    }
+  }
+
+  if (parse.data.command === 'config') {
+    const [action, key, value] = parse.data.args
+
+    if (action === 'set') {
+      config[key] = value
     }
   }
 
