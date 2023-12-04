@@ -355,12 +355,16 @@ ${JSON.stringify(trustAnalytics, null, 2)}
     const args = parse.data.args
 
     if (args[0] === 'view') {
-      await ctx.reply(`Конфиг: \`${JSON.stringify(config)}\``)
+      await ctx.reply(`Конфиг: \`${JSON.stringify(config)}\``, {
+        parse_mode: 'Markdown',
+      })
     } else if (args[0] === 'set') {
       try {
         const updatedConfig = ConfigSchema.parse(JSON.parse(args[1]))
         Object.assign(config, updatedConfig)
-        await ctx.reply(`Конфиг обновлен: ${JSON.stringify(config)}`)
+        await ctx.reply(`Конфиг обновлен: \`${JSON.stringify(config)}\``, {
+          parse_mode: 'Markdown',
+        })
       } catch {
         await ctx.reply('Неверный формат конфига')
       }

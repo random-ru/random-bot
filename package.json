@@ -10,7 +10,7 @@
     "generate": "prisma generate",
     "migrate": "prisma migrate deploy",
     "build": "yarn generate && NODE_ENV=production webpack",
-    "start": "yarn migrate && NODE_ENV=production nodemon dist/main.js",
+    "start": "yarn migrate && NODE_ENV=production node dist/main.js",
     "build:dev": "NODE_ENV=development webpack",
     "start:dev": "NODE_ENV=development nodemon dist/main.js --inspect",
     "lint": "eslint \"src/**/*.{js,mjs,cjs,ts,mts,jsx,tsx}\"",
