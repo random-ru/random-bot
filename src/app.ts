@@ -91,10 +91,12 @@ const bot = new Bot(env.telegram.botApiToken)
 
 const ConfigSchema = z.object({
   removeMessages: z.boolean().default(true),
+  checkTrust: z.boolean().default(true),
 })
 
 const config: z.infer<typeof ConfigSchema> = {
   removeMessages: true,
+  checkTrust: true,
 }
 
 bot.on('message', async (ctx) => {
@@ -135,32 +137,34 @@ bot.on('message', async (ctx) => {
 
     let trustChecked = false
 
-    try {
-      const payload = {
-        telegramId: from.id,
-        messageId: ctx.message.message_id,
+    if (config.checkTrust) {
+      try {
+        const payload = {
+          telegramId: from.id,
+          messageId: ctx.message.message_id,
+        }
+
+        console.info('Calculating TrustAnalytics for:', payload)
+        const trustAnalytics = await TrustAPI.getTrustAnalytics(payload)
+        console.info('TrustAnalytics calculated')
+        console.info(trustAnalytics)
+
+        const allowedVerdicts = [
+          TrustVerdict.GoodStage,
+          TrustVerdict.PerfectStage,
+          TrustVerdict.LowerStage,
+        ]
+
+        if (allowedVerdicts.includes(trustAnalytics.verdict)) {
+          await createUser(from)
+          return
+        }
+
+        trustChecked = true
+      } catch (error) {
+        console.info('Failed to calculate TrustAnalytics')
+        console.error(error)
       }
-
-      console.info('Calculating TrustAnalytics for:', payload)
-      const trustAnalytics = await TrustAPI.getTrustAnalytics(payload)
-      console.info('TrustAnalytics calculated')
-      console.info(trustAnalytics)
-
-      const allowedVerdicts = [
-        TrustVerdict.GoodStage,
-        TrustVerdict.PerfectStage,
-        TrustVerdict.LowerStage,
-      ]
-
-      if (allowedVerdicts.includes(trustAnalytics.verdict)) {
-        await createUser(from)
-        return
-      }
-
-      trustChecked = true
-    } catch (error) {
-      console.info('Failed to calculate TrustAnalytics')
-      console.error(error)
     }
 
     await ctx.restrictChatMember(from.id, { can_send_messages: false })
