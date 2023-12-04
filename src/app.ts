@@ -353,6 +353,7 @@ ${JSON.stringify(trustAnalytics, null, 2)}
 
     if (action === 'set') {
       config[key] = value
+      await ctx.reply(`Конфигурация обновлена: ${JSON.stringify(config)}`)
     }
   }
 
