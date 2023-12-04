@@ -89,7 +89,11 @@ function isAdmin(chatMember: ChatMember): boolean {
 
 const bot = new Bot(env.telegram.botApiToken)
 
-const config = {
+const ConfigSchema = z.object({
+  removeMessages: z.boolean().default(true),
+})
+
+const config: z.infer<typeof ConfigSchema> = {
   removeMessages: true,
 }
 
@@ -187,7 +191,7 @@ const TelegramIdOrSourceSchema = z.union([
   z.literal('reply'),
 ])
 
-const UserSchema = z.object({
+const UserCommandSchema = z.object({
   command: z.literal('user'),
   args: z.tuple([
     z.enum(['unblock', 'delete', 'trust']),
@@ -195,30 +199,29 @@ const UserSchema = z.object({
   ]),
 })
 
-const AnalyzeSchema = z.object({
+const AnalyzeCommandSchema = z.object({
   command: z.literal('analyze'),
   args: z.tuple([TelegramIdOrSourceSchema]),
 })
 
-const ConfigSchema = z.object({
+const ConfigCommandSchema = z.object({
   command: z.literal('config'),
-  args: z.tuple([
-    z.literal('set'),
-    z.literal('removeMessages'),
-    z.string().transform((text) => text === 'true'),
+  args: z.union([
+    z.tuple([z.literal('view')]),
+    z.tuple([z.literal('set'), z.string()]),
   ]),
 })
 
-const CacheSchema = z.object({
+const CacheCommandSchema = z.object({
   command: z.literal('cache'),
   args: z.tuple([z.literal('clear')]),
 })
 
 const CommandSchema = z.discriminatedUnion('command', [
-  UserSchema,
-  AnalyzeSchema,
-  ConfigSchema,
-  CacheSchema,
+  UserCommandSchema,
+  AnalyzeCommandSchema,
+  ConfigCommandSchema,
+  CacheCommandSchema,
 ])
 
 async function getTelegramId(
@@ -349,11 +352,18 @@ ${JSON.stringify(trustAnalytics, null, 2)}
   }
 
   if (parse.data.command === 'config') {
-    const [action, key, value] = parse.data.args
+    const args = parse.data.args
 
-    if (action === 'set') {
-      config[key] = value
-      await ctx.reply(`Конфигурация обновлена: ${JSON.stringify(config)}`)
+    if (args[0] === 'view') {
+      await ctx.reply(`Конфиг: \`${JSON.stringify(config)}\``)
+    } else if (args[0] === 'set') {
+      try {
+        const updatedConfig = ConfigSchema.parse(JSON.parse(args[1]))
+        Object.assign(config, updatedConfig)
+        await ctx.reply(`Конфиг обновлен: ${JSON.stringify(config)}`)
+      } catch {
+        await ctx.reply('Неверный формат конфига')
+      }
     }
   }
 
