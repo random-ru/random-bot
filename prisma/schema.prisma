@@ -1,0 +1,24 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @db.Timestamp(6)
+
+  telegramId        String? @unique @db.Text
+  telegramUsername  String? @unique @db.Text
+  telegramFirstName String? @db.Text
+  telegramLastName  String? @db.Text
+  telegramIsAdmin   Boolean @default(false) @db.Boolean
+
+  restricted Boolean @default(false) @db.Boolean
+}
