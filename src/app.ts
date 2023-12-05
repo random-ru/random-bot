@@ -106,7 +106,14 @@ const config: z.infer<typeof ConfigSchema> = {
 }
 
 bot.on('message', async (ctx) => {
-  const { text, from, chat } = ctx.message
+  const { text, from, chat, new_chat_members } = ctx.message
+
+  if (new_chat_members) {
+    for (const user of new_chat_members) {
+      console.info(`New user (${user.first_name})`)
+      await sendLog(`Пользователь ${generateUserLink(user)} присоединился`)
+    }
+  }
 
   if (
     chat.type !== 'supergroup' ||
