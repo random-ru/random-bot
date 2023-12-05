@@ -350,7 +350,8 @@ ${JSON.stringify(trustAnalytics, null, 2)}
 \`\`\``,
         { parse_mode: 'Markdown' },
       )
-    } catch {
+    } catch (error) {
+      console.error(error)
       await ctx.reply('Не удалось получить TrustAnalytics')
     }
   }
