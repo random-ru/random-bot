@@ -203,6 +203,11 @@ const UserCommandSchema = z.object({
   ]),
 })
 
+const BanCommandSchema = z.object({
+  command: z.literal('ban'),
+  args: z.tuple([z.literal('restricted')]),
+})
+
 const AnalyzeCommandSchema = z.object({
   command: z.literal('analyze'),
   args: z.tuple([TelegramIdOrSourceSchema]),
@@ -223,6 +228,7 @@ const CacheCommandSchema = z.object({
 
 const CommandSchema = z.discriminatedUnion('command', [
   UserCommandSchema,
+  BanCommandSchema,
   AnalyzeCommandSchema,
   ConfigCommandSchema,
   CacheCommandSchema,
@@ -314,6 +320,22 @@ async function handleCommand(ctx: Context, command: string, args: string[]) {
       })
 
       await ctx.reply('Пользователь добавлен в базу')
+    }
+  }
+
+  if (parse.data.command === 'ban') {
+    const [action] = parse.data.args
+
+    if (action === 'restricted') {
+      const users = await prisma.user.findMany({
+        where: { restricted: true },
+      })
+
+      for (const user of users) {
+        await ctx.banChatMember(Number(user.telegramId))
+      }
+
+      await ctx.reply('Все ранее добавленные в read-only чмони забанены')
     }
   }
 
