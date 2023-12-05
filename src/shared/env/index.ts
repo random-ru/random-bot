@@ -6,6 +6,7 @@ const EnvSchema = z
   .object({
     TELEGRAM_BOT_API_TOKEN: z.string(),
     TELEGRAM_CHAT_USERNAME: z.string(),
+    TELEGRAM_LOG_CHANNEL_ID: z.string(),
     TRUST_API_URL: z.string(),
     TRUST_API_ACCESS_TOKEN: z.string(),
   })
@@ -18,6 +19,7 @@ const EnvSchema = z
         botPrivateKey,
         botApiToken: raw.TELEGRAM_BOT_API_TOKEN,
         chatUsername: raw.TELEGRAM_CHAT_USERNAME,
+        logChannelId: Number(raw.TELEGRAM_LOG_CHANNEL_ID),
       },
       api: {
         trust: {

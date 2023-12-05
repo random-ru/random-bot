@@ -87,6 +87,12 @@ function isAdmin(chatMember: ChatMember): boolean {
   )
 }
 
+async function sendLog(text: string) {
+  await bot.api.sendMessage(env.telegram.logChannelId, text, {
+    parse_mode: 'Markdown',
+  })
+}
+
 const bot = new Bot(env.telegram.botApiToken)
 
 const ConfigSchema = z.object({
@@ -176,14 +182,14 @@ bot.on('message', async (ctx) => {
     }
 
     const message = [
-      `Выдал read-only ${generateUserLink(from, 'чмоне')}`,
+      `Выдал read-only ${generateUserLink(from)}`,
       !trustChecked && `*Проверка через TrustAPI не пройдена*`,
       `Разблокировать: \`/random user unblock ${from.id}\``,
     ]
       .filter(Boolean)
       .join('\n')
 
-    await ctx.reply(message, { parse_mode: 'Markdown' })
+    await sendLog(message)
   } catch (error) {
     console.info(`Failed to process message from ${from.id}`)
     console.error(error)
