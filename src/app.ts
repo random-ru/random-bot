@@ -6,6 +6,7 @@ import { env } from '@shared/env'
 import { createMemoryCache } from '@shared/lib/cache'
 import { Bot, Context } from 'grammy'
 import { ChatMember, User as TelegramUser } from 'grammy/types'
+import { generateUpdateMiddleware } from 'telegraf-middleware-console-time'
 import { z } from 'zod'
 
 const userCache = createMemoryCache<User>({
@@ -94,6 +95,7 @@ async function sendLog(text: string) {
 }
 
 const bot = new Bot(env.telegram.botApiToken)
+bot.use(generateUpdateMiddleware())
 
 const ConfigSchema = z.object({
   removeMessages: z.boolean().default(true),
