@@ -1,6 +1,6 @@
 import { User } from '@prisma/client'
 import { TrustAPI } from '@shared/api/trust'
-import { TrustVerdict } from '@shared/api/trust/types'
+import { TrustAnalytics, TrustVerdict } from '@shared/api/trust/types'
 import { prisma } from '@shared/db'
 import { env } from '@shared/env'
 import { createMemoryCache } from '@shared/lib/cache'
@@ -82,6 +82,12 @@ function generateUserLink(
   return `[${label}](tg://user?id=${telegramUser.id})`
 }
 
+function generateTrustAnalyticsSummary(trustAnalytics: TrustAnalytics): string {
+  const { verdict, accuracy } = trustAnalytics
+
+  return `Verdict: ${verdict}, Accuracy: ${Math.round(accuracy)}%`
+}
+
 function isAdmin(chatMember: ChatMember): boolean {
   return (
     chatMember.status === 'creator' || chatMember.status === 'administrator'
@@ -124,6 +130,14 @@ bot.on('message', async (ctx) => {
     return
   }
 
+  const isJoinEvent = Boolean(ctx.message.new_chat_members)
+  const isLeftEvent = Boolean(ctx.message.left_chat_member)
+
+  if (isLeftEvent) {
+    console.info(`User left (${from.first_name}), skipping`)
+    return
+  }
+
   const user = await getUser(from.id)
 
   if (user) {
@@ -150,7 +164,7 @@ bot.on('message', async (ctx) => {
       return
     }
 
-    let trustChecked = false
+    let trustAnalytics: TrustAnalytics | null = null
 
     if (config.checkTrust) {
       try {
@@ -160,7 +174,7 @@ bot.on('message', async (ctx) => {
         }
 
         console.info('Calculating TrustAnalytics for:', payload)
-        const trustAnalytics = await TrustAPI.getTrustAnalytics(payload)
+        trustAnalytics = await TrustAPI.getTrustAnalytics(payload)
         console.info('TrustAnalytics calculated')
         console.info(trustAnalytics)
 
@@ -174,8 +188,6 @@ bot.on('message', async (ctx) => {
           await createUser(from)
           return
         }
-
-        trustChecked = true
       } catch (error) {
         console.info('Failed to calculate TrustAnalytics')
         console.error(error)
@@ -186,19 +198,29 @@ bot.on('message', async (ctx) => {
     await createUser(from, { restricted: true })
     console.info(`The user ${from.id} has been restricted`)
 
-    if (config.removeMessages) {
-      await ctx.deleteMessage()
-    }
-
     const message = [
       `Выдал read-only ${generateUserLink(from)}`,
-      !trustChecked && `*Проверка через TrustAPI не пройдена*`,
+      `Событие: _${isJoinEvent ? 'вступление в группу' : 'сообщение'}_`,
+      !trustAnalytics && `*Проверка через TrustAPI не пройдена*`,
+      trustAnalytics && generateTrustAnalyticsSummary(trustAnalytics),
       `Разблокировать: \`/random user unblock ${from.id}\``,
     ]
       .filter(Boolean)
       .join('\n')
 
     await sendLog(message)
+
+    if (!isJoinEvent) {
+      try {
+        await ctx.forwardMessage(env.telegram.logChannelId)
+      } catch {
+        console.info('Failed to forward message')
+      }
+    }
+
+    if (config.removeMessages) {
+      await ctx.deleteMessage()
+    }
   } catch (error) {
     console.info(`Failed to process message from ${from.id}`)
     console.error(error)
