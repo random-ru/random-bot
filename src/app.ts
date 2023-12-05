@@ -213,6 +213,11 @@ const AnalyzeCommandSchema = z.object({
   args: z.tuple([TelegramIdOrSourceSchema]),
 })
 
+const SocialRatingCommandSchema = z.object({
+  command: z.literal('rating'),
+  args: z.tuple([z.enum(['increase', 'decrease']), TelegramIdOrSourceSchema]),
+})
+
 const ConfigCommandSchema = z.object({
   command: z.literal('config'),
   args: z.union([
@@ -232,6 +237,7 @@ const CommandSchema = z.discriminatedUnion('command', [
   AnalyzeCommandSchema,
   ConfigCommandSchema,
   CacheCommandSchema,
+  SocialRatingCommandSchema,
 ])
 
 async function getTelegramId(
@@ -396,6 +402,30 @@ ${JSON.stringify(trustAnalytics, null, 2)}
         await ctx.reply('Неверный формат конфига')
       }
     }
+  }
+
+  if (parse.data.command === 'rating') {
+    const [action, telegramIdOrSource] = parse.data.args
+    const telegramId = await getTelegramId(ctx, telegramIdOrSource)
+
+    const user = await getUser(telegramId)
+
+    if (!user) {
+      await ctx.reply('Пользователь не найден в базе')
+      return
+    }
+
+    const chatMember = await ctx.getChatMember(telegramId)
+    const userLink = generateUserLink(chatMember.user)
+
+    const diff = action === 'increase' ? 1 : -1
+    const newRating = (user?.socialRating ?? 0) + diff
+    await updateUser(telegramId, { socialRating: newRating })
+
+    await ctx.reply(
+      `Рейтинг пользователя ${userLink} обновлен: *${newRating}*`,
+      { parse_mode: 'Markdown' },
+    )
   }
 
   if (parse.data.command === 'cache') {

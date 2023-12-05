@@ -20,5 +20,6 @@ model User {
   telegramLastName  String? @db.Text
   telegramIsAdmin   Boolean @default(false) @db.Boolean
 
-  restricted Boolean @default(false) @db.Boolean
+  socialRating Int     @default(0) @db.Integer
+  restricted   Boolean @default(false) @db.Boolean
 }
