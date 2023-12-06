@@ -4,7 +4,7 @@ import { TrustAnalytics, TrustVerdict } from '@shared/api/trust/types'
 import { prisma } from '@shared/db'
 import { env } from '@shared/env'
 import { createMemoryCache } from '@shared/lib/cache'
-import { Bot, Context } from 'grammy'
+import { Bot, Context, InlineKeyboard } from 'grammy'
 import { ChatMember, User as TelegramUser } from 'grammy/types'
 import { generateUpdateMiddleware } from 'telegraf-middleware-console-time'
 import { z } from 'zod'
@@ -73,6 +73,22 @@ async function deleteUser(telegramId: number) {
   userCache.delete(telegramId)
 }
 
+async function unblockUser(user: User) {
+  await bot.api.restrictChatMember(
+    `@${env.telegram.chatUsername}`,
+    Number(user.telegramId),
+    {
+      can_send_messages: true,
+      can_send_other_messages: true,
+      can_invite_users: true,
+      can_send_polls: true,
+      can_add_web_page_previews: true,
+    },
+  )
+
+  await updateUser(Number(user.telegramId), { restricted: false })
+}
+
 function generateUserLink(
   telegramUser: TelegramUser,
   label = [telegramUser.first_name, telegramUser.last_name]
@@ -94,9 +110,13 @@ function isAdmin(chatMember: ChatMember): boolean {
   )
 }
 
-async function sendLog(text: string) {
+async function sendLog(
+  text: string,
+  other: { keyboard?: InlineKeyboard } = {},
+) {
   await bot.api.sendMessage(env.telegram.logChannelId, text, {
     parse_mode: 'Markdown',
+    reply_markup: other.keyboard,
   })
 }
 
@@ -199,16 +219,20 @@ bot.on('message', async (ctx) => {
     console.info(`The user ${from.id} has been restricted`)
 
     const message = [
-      `Выдал read-only ${generateUserLink(from)}`,
+      `Выдал read-only ${generateUserLink(from)} (\`${from.id}\`)`,
       `Событие: _${isJoinEvent ? 'вступление в группу' : 'сообщение'}_`,
       !trustAnalytics && `*Проверка через TrustAPI не пройдена*`,
       trustAnalytics && generateTrustAnalyticsSummary(trustAnalytics),
-      `Разблокировать: \`/random user unblock ${from.id}\``,
     ]
       .filter(Boolean)
       .join('\n')
 
-    await sendLog(message)
+    const keyboard = new InlineKeyboard().text(
+      'Разблокировать',
+      `unblock ${from.id}`,
+    )
+
+    await sendLog(message, { keyboard })
 
     if (!isJoinEvent) {
       try {
@@ -227,10 +251,9 @@ bot.on('message', async (ctx) => {
   }
 })
 
-const TelegramIdOrSourceSchema = z.union([
-  z.string().regex(/\d+/).transform(Number),
-  z.literal('reply'),
-])
+const TelegramIdSchema = z.string().regex(/\d+/).transform(Number)
+
+const TelegramIdOrSourceSchema = z.union([TelegramIdSchema, z.literal('reply')])
 
 const UserCommandSchema = z.object({
   command: z.literal('user'),
@@ -248,11 +271,6 @@ const BanCommandSchema = z.object({
 const AnalyzeCommandSchema = z.object({
   command: z.literal('analyze'),
   args: z.tuple([TelegramIdOrSourceSchema]),
-})
-
-const SocialRatingCommandSchema = z.object({
-  command: z.literal('rating'),
-  args: z.tuple([z.enum(['increase', 'decrease']), TelegramIdOrSourceSchema]),
 })
 
 const ConfigCommandSchema = z.object({
@@ -274,7 +292,6 @@ const CommandSchema = z.discriminatedUnion('command', [
   AnalyzeCommandSchema,
   ConfigCommandSchema,
   CacheCommandSchema,
-  SocialRatingCommandSchema,
 ])
 
 async function getTelegramId(
@@ -324,15 +341,7 @@ async function handleCommand(ctx: Context, command: string, args: string[]) {
         return
       }
 
-      await ctx.restrictChatMember(telegramId, {
-        can_send_messages: true,
-        can_send_other_messages: true,
-        can_invite_users: true,
-        can_send_polls: true,
-        can_add_web_page_previews: true,
-      })
-
-      await updateUser(telegramId, { restricted: false })
+      await unblockUser(user)
       await ctx.reply('Ограничения сняты')
     }
 
@@ -441,30 +450,6 @@ ${JSON.stringify(trustAnalytics, null, 2)}
     }
   }
 
-  if (parse.data.command === 'rating') {
-    const [action, telegramIdOrSource] = parse.data.args
-    const telegramId = await getTelegramId(ctx, telegramIdOrSource)
-
-    const user = await getUser(telegramId)
-
-    if (!user) {
-      await ctx.reply('Пользователь не найден в базе')
-      return
-    }
-
-    const chatMember = await ctx.getChatMember(telegramId)
-    const userLink = generateUserLink(chatMember.user)
-
-    const diff = action === 'increase' ? 1 : -1
-    const newRating = (user?.socialRating ?? 0) + diff
-    await updateUser(telegramId, { socialRating: newRating })
-
-    await ctx.reply(
-      `Рейтинг пользователя ${userLink} обновлен: *${newRating}*`,
-      { parse_mode: 'Markdown' },
-    )
-  }
-
   if (parse.data.command === 'cache') {
     const [action] = parse.data.args
 
@@ -474,6 +459,52 @@ ${JSON.stringify(trustAnalytics, null, 2)}
     }
   }
 }
+
+const UnblockQuerySchema = z.tuple([z.literal('unblock'), TelegramIdSchema])
+
+bot.on('callback_query:data', async (ctx) => {
+  const queryArgs = ctx.callbackQuery.data.split(' ')
+  const parse = UnblockQuerySchema.safeParse(queryArgs)
+
+  if (!parse.success) {
+    await ctx.answerCallbackQuery('Неизвестная команда')
+    return
+  }
+
+  const caller = await getUser(ctx.callbackQuery.from.id)
+
+  if (!caller?.telegramIsAdmin) {
+    await ctx.answerCallbackQuery('Недостаточно прав')
+    return
+  }
+
+  const [command, ...args] = parse.data
+
+  try {
+    if (command === 'unblock') {
+      const telegramId = args[0]
+      const user = await getUser(telegramId)
+
+      if (!user) {
+        await ctx.answerCallbackQuery('Пользователь не найден')
+        return
+      }
+
+      if (!user.restricted) {
+        await ctx.answerCallbackQuery(
+          'У пользователя нет ограничений на отправку сообщений',
+        )
+        return
+      }
+
+      await unblockUser(user)
+      await ctx.answerCallbackQuery('Ограничения сняты')
+    }
+  } catch (error) {
+    console.log(error)
+    await ctx.answerCallbackQuery('Не удалось выполнить команду')
+  }
+})
 
 bot.catch((error) => {
   console.error(error)
