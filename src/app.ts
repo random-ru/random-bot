@@ -1,5 +1,6 @@
 import { User } from '@prisma/client'
 import { TrustAPI } from '@shared/api/trust'
+import { GetTrustAnalyticsPayload } from '@shared/api/trust/requests'
 import { TrustAnalytics, TrustVerdict } from '@shared/api/trust/types'
 import { prisma } from '@shared/db'
 import { env } from '@shared/env'
@@ -190,9 +191,12 @@ bot.on('message', async (ctx) => {
 
     if (config.checkTrust) {
       try {
-        const payload = {
+        const payload: GetTrustAnalyticsPayload = {
           telegramId: from.id,
-          messageId: ctx.message.message_id,
+        }
+
+        if (!isJoinEvent) {
+          payload.messageId = ctx.message.message_id
         }
 
         console.info('Calculating TrustAnalytics')

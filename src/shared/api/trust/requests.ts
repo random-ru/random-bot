@@ -1,7 +1,7 @@
 import { api } from './api'
 import { TrustAnalytics } from './types'
 
-interface GetTrustAnalyticsPayload {
+export interface GetTrustAnalyticsPayload {
   telegramId: number
   messageId?: number
 }
