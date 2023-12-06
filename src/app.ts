@@ -6,7 +6,6 @@ import { env } from '@shared/env'
 import { createMemoryCache } from '@shared/lib/cache'
 import { Bot, Context, InlineKeyboard } from 'grammy'
 import { ChatMember, User as TelegramUser } from 'grammy/types'
-import { generateUpdateMiddleware } from 'telegraf-middleware-console-time'
 import { z } from 'zod'
 
 const userCache = createMemoryCache<User>({
@@ -120,8 +119,11 @@ async function sendLog(
   })
 }
 
+function printJSON(object: unknown) {
+  console.info(JSON.stringify(object))
+}
+
 const bot = new Bot(env.telegram.botApiToken)
-bot.use(generateUpdateMiddleware())
 
 const ConfigSchema = z.object({
   removeMessages: z.boolean().default(true),
@@ -138,7 +140,7 @@ bot.on('message', async (ctx) => {
 
   if (new_chat_members) {
     for (const user of new_chat_members) {
-      console.info(`New user (${user.first_name})`)
+      console.info(`User ${user.id} joined`)
       await sendLog(`Пользователь ${generateUserLink(user)} присоединился`)
     }
   }
@@ -154,7 +156,7 @@ bot.on('message', async (ctx) => {
   const isLeftEvent = Boolean(ctx.message.left_chat_member)
 
   if (isLeftEvent) {
-    console.info(`User left (${from.first_name}), skipping`)
+    console.info(`User ${from.id} left, skipping`)
     return
   }
 
@@ -177,7 +179,7 @@ bot.on('message', async (ctx) => {
   try {
     const chatMember = await ctx.getChatMember(from.id)
     console.info('Checking new user')
-    console.info(chatMember)
+    printJSON(chatMember)
 
     if (isAdmin(chatMember)) {
       await createUser(from, { telegramIsAdmin: true })
@@ -193,10 +195,11 @@ bot.on('message', async (ctx) => {
           messageId: ctx.message.message_id,
         }
 
-        console.info('Calculating TrustAnalytics for:', payload)
+        console.info('Calculating TrustAnalytics')
+        printJSON(payload)
         trustAnalytics = await TrustAPI.getTrustAnalytics(payload)
         console.info('TrustAnalytics calculated')
-        console.info(trustAnalytics)
+        printJSON(trustAnalytics)
 
         const allowedVerdicts = [
           TrustVerdict.GoodStage,
@@ -407,14 +410,15 @@ async function handleCommand(ctx: Context, command: string, args: string[]) {
 
     try {
       await ctx.reply(
-        `Начинаю расчет TrustAnalytics для: ${JSON.stringify(payload)}`,
+        `Начинаю расчет TrustAnalytics для: \`${JSON.stringify(payload)}\``,
         { parse_mode: 'Markdown' },
       )
 
-      console.info('Calculating TrustAnalytics for:', payload)
+      console.info('Calculating TrustAnalytics')
+      printJSON(payload)
       const trustAnalytics = await TrustAPI.getTrustAnalytics(payload)
       console.info('TrustAnalytics calculated')
-      console.info(trustAnalytics)
+      printJSON(trustAnalytics)
 
       await ctx.reply(
         `TrustAnalytics:
