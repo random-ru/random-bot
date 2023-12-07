@@ -266,6 +266,12 @@ bot.on('message', async (ctx) => {
     if (config.removeMessages) {
       await ctx.deleteMessage()
     }
+
+    if (!trustAnalytics) {
+      await ctx.reply(
+        `${generateUserLink(from)}, для снятия read-only напиши админу`,
+      )
+    }
   } catch (error) {
     console.info(`Failed to process message from ${from.id}`)
     console.error(error)
