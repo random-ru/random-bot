@@ -1,5 +1,6 @@
 import { User } from '@prisma/client'
 import { TrustAPI } from '@shared/api/trust'
+import { TrustAPIException } from '@shared/api/trust/exceptions'
 import { GetTrustAnalyticsPayload } from '@shared/api/trust/requests'
 import { TrustAnalytics, TrustVerdict } from '@shared/api/trust/types'
 import { prisma } from '@shared/db'
@@ -111,10 +112,12 @@ function isAdmin(chatMember: ChatMember): boolean {
 }
 
 async function sendLog(
-  text: string,
+  text: string | string[],
   other: { keyboard?: InlineKeyboard } = {},
 ) {
-  await bot.api.sendMessage(env.telegram.logChannelId, text, {
+  const fullText = Array.isArray(text) ? text.join('\n') : text
+
+  await bot.api.sendMessage(env.telegram.logChannelId, fullText, {
     parse_mode: 'Markdown',
     reply_markup: other.keyboard,
   })
@@ -190,15 +193,15 @@ bot.on('message', async (ctx) => {
     let trustAnalytics: TrustAnalytics | null = null
 
     if (config.checkTrust) {
+      const payload: GetTrustAnalyticsPayload = {
+        telegramId: from.id,
+      }
+
+      if (!isJoinEvent) {
+        payload.messageId = ctx.message.message_id
+      }
+
       try {
-        const payload: GetTrustAnalyticsPayload = {
-          telegramId: from.id,
-        }
-
-        if (!isJoinEvent) {
-          payload.messageId = ctx.message.message_id
-        }
-
         console.info('Calculating TrustAnalytics')
         printJSON(payload)
         trustAnalytics = await TrustAPI.getTrustAnalytics(payload)
@@ -216,6 +219,17 @@ bot.on('message', async (ctx) => {
           return
         }
       } catch (error) {
+        const errorDetails =
+          error instanceof TrustAPIException
+            ? `Code: \`${error.code}\``
+            : 'Неизвестная ошибка'
+
+        await sendLog([
+          `Не удалось получить TrustAnalytics`,
+          `Payload: \`${JSON.stringify(payload)}\``,
+          errorDetails,
+        ])
+
         console.info('Failed to calculate TrustAnalytics')
         console.error(error)
       }
@@ -433,8 +447,19 @@ ${JSON.stringify(trustAnalytics, null, 2)}
         { parse_mode: 'Markdown' },
       )
     } catch (error) {
+      const errorDetails =
+        error instanceof TrustAPIException
+          ? `Code: \`${error.code}\``
+          : 'Неизвестная ошибка'
+
+      const message = [
+        `Не удалось получить TrustAnalytics`,
+        `Payload: \`${JSON.stringify(payload)}\``,
+        errorDetails,
+      ].join('\n')
+
+      await ctx.reply(message, { parse_mode: 'Markdown' })
       console.error(error)
-      await ctx.reply('Не удалось получить TrustAnalytics')
     }
   }
 
