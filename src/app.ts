@@ -159,6 +159,11 @@ bot.on('message', async (ctx) => {
   const isJoinEvent = Boolean(ctx.message.new_chat_members)
   const isLeftEvent = Boolean(ctx.message.left_chat_member)
 
+  if (isJoinEvent) {
+    console.info(`User ${from.id} joined, skipping`)
+    return
+  }
+
   if (isLeftEvent) {
     console.info(`User ${from.id} left, skipping`)
     return
@@ -255,12 +260,10 @@ bot.on('message', async (ctx) => {
 
     await sendLog(message, { keyboard })
 
-    if (!isJoinEvent) {
-      try {
-        await ctx.forwardMessage(env.telegram.logChannelId)
-      } catch {
-        console.info('Failed to forward message')
-      }
+    try {
+      await ctx.forwardMessage(env.telegram.logChannelId)
+    } catch {
+      console.info('Failed to forward message')
     }
 
     if (config.removeMessages) {
