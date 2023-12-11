@@ -153,7 +153,8 @@ bot.on('message', async (ctx) => {
   const isLeftEvent = Boolean(ctx.message.left_chat_member)
 
   if (isJoinEvent) {
-    console.info(`User ${from.id} joined, skipping`)
+    console.info(`User ${from.id} joined, only removing the message`)
+    await ctx.deleteMessage()
     return
   }
 
