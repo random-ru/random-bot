@@ -7,8 +7,7 @@ export const api = wretch(env.api.trust.url)
   .addon(QueryStringAddon)
   .auth(env.api.trust.token)
   .catcherFallback(async (error) => {
-    const json = await error.response.json()
-    const isException = json?.code
+    const isException = error.json?.code
     if (!isException) throw new Error('Not an exception')
-    throw new TrustAPIException(json.code)
+    throw new TrustAPIException(error.json.code)
   })
