@@ -207,13 +207,16 @@ bot.on('message', async (ctx) => {
         console.info('TrustAnalytics calculated')
         printJSON(trustAnalytics)
 
-        const allowedVerdicts = [
-          TrustVerdict.GoodStage,
-          TrustVerdict.PerfectStage,
-          TrustVerdict.LowerStage,
+        const disallowedVerdicts = [
+          TrustVerdict.AwfulStage,
+          TrustVerdict.BadStage,
         ]
 
-        if (allowedVerdicts.includes(trustAnalytics.verdict)) {
+        const isAllowedVerdict = !disallowedVerdicts.includes(
+          trustAnalytics.verdict,
+        )
+
+        if (isAllowedVerdict) {
           await createUser(from)
           return
         }
@@ -267,6 +270,7 @@ bot.on('message', async (ctx) => {
     if (!trustAnalytics) {
       await ctx.reply(
         `${generateUserLink(from)}, для снятия read-only напиши админу`,
+        { parse_mode: 'Markdown' },
       )
     }
   } catch (error) {
