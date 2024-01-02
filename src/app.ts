@@ -139,10 +139,7 @@ const config: z.infer<typeof ConfigSchema> = {
   checkTrust: true,
 }
 
-const disallowedVerdicts = [
-  TrustVerdict.AwfulStage,
-  TrustVerdict.BadStage,
-]
+const disallowedVerdicts = [TrustVerdict.AwfulStage, TrustVerdict.BadStage]
 
 bot.on('message', async (ctx) => {
   const { text, from, chat } = ctx.message
@@ -535,19 +532,22 @@ ${JSON.stringify(trustAnalytics, null, 2)}
 
       await sendLog(message, { keyboard })
 
-      try {
-        await ctx.forwardMessage(env.telegram.logChannelId)
-      } catch {
-        console.info('Failed to forward message')
+      if (messageId) {
+        try {
+          await bot.api.forwardMessage(
+            env.telegram.logChannelId,
+            `@${env.telegram.chatUsername}`,
+            messageId,
+          )
+        } catch {
+          console.info('Failed to forward message')
+        }
       }
 
       await ctx.deleteMessage()
 
       if (config.removeMessages && messageId) {
-        await bot.api.deleteMessage(
-          `@${env.telegram.chatUsername}`,
-          messageId,
-        )
+        await bot.api.deleteMessage(`@${env.telegram.chatUsername}`, messageId)
       }
     } catch (error) {
       const errorDetails =
