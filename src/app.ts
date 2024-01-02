@@ -505,14 +505,19 @@ ${JSON.stringify(trustAnalytics, null, 2)}
         telegramId,
       )
 
-      if (isAllowedVerdict) {
+      const existingUser = await getUser(telegramId)
+
+      if (!existingUser) {
         await createUser(user)
+      }
+
+      if (isAllowedVerdict) {
         await ctx.reply('Юзер проверен')
         return
       }
 
       await ctx.restrictChatMember(user.id, { can_send_messages: false })
-      await createUser(user, { restricted: true })
+      await updateUser(user.id, { restricted: true })
       console.info(`The user ${user.id} has been restricted`)
 
       const message = [
