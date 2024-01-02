@@ -139,6 +139,11 @@ const config: z.infer<typeof ConfigSchema> = {
   checkTrust: true,
 }
 
+const disallowedVerdicts = [
+  TrustVerdict.AwfulStage,
+  TrustVerdict.BadStage,
+]
+
 bot.on('message', async (ctx) => {
   const { text, from, chat } = ctx.message
 
@@ -207,11 +212,6 @@ bot.on('message', async (ctx) => {
         console.info('TrustAnalytics calculated')
         printJSON(trustAnalytics)
 
-        const disallowedVerdicts = [
-          TrustVerdict.AwfulStage,
-          TrustVerdict.BadStage,
-        ]
-
         const isAllowedVerdict = !disallowedVerdicts.includes(
           trustAnalytics.verdict,
         )
@@ -243,7 +243,6 @@ bot.on('message', async (ctx) => {
 
     const message = [
       `Выдал read-only ${generateUserLink(from)} (\`${from.id}\`)`,
-      `Событие: _${isJoinEvent ? 'вступление в группу' : 'сообщение'}_`,
       !trustAnalytics && `*Проверка через TrustAPI не пройдена*`,
       trustAnalytics && generateTrustAnalyticsSummary(trustAnalytics),
     ]
@@ -301,6 +300,11 @@ const AnalyzeCommandSchema = z.object({
   args: z.tuple([TelegramIdOrSourceSchema]),
 })
 
+const CheckCommandSchema = z.object({
+  command: z.literal('check'),
+  args: z.tuple([TelegramIdOrSourceSchema]),
+})
+
 const ConfigCommandSchema = z.object({
   command: z.literal('config'),
   args: z.union([
@@ -318,6 +322,7 @@ const CommandSchema = z.discriminatedUnion('command', [
   UserCommandSchema,
   BanCommandSchema,
   AnalyzeCommandSchema,
+  CheckCommandSchema,
   ConfigCommandSchema,
   CacheCommandSchema,
 ])
@@ -461,6 +466,92 @@ ${JSON.stringify(trustAnalytics, null, 2)}
 
       const message = [
         `Не удалось получить TrustAnalytics`,
+        `Payload: \`${JSON.stringify(payload)}\``,
+        errorDetails,
+      ].join('\n')
+
+      await ctx.reply(message, { parse_mode: 'Markdown' })
+      console.error(error)
+    }
+  }
+
+  if (parse.data.command === 'check') {
+    const [telegramIdOrSource] = parse.data.args
+    const telegramId = await getTelegramId(ctx, telegramIdOrSource)
+
+    const messageId =
+      telegramIdOrSource === 'reply'
+        ? ctx.message?.reply_to_message?.message_id
+        : undefined
+
+    const payload = {
+      telegramId,
+      messageId,
+    }
+
+    try {
+      console.info('Calculating TrustAnalytics')
+      printJSON(payload)
+      const trustAnalytics = await TrustAPI.getTrustAnalytics(payload)
+      console.info('TrustAnalytics calculated')
+      printJSON(trustAnalytics)
+
+      const isAllowedVerdict = !disallowedVerdicts.includes(
+        trustAnalytics.verdict,
+      )
+
+      const { user } = await bot.api.getChatMember(
+        `@${env.telegram.chatUsername}`,
+        telegramId,
+      )
+
+      if (isAllowedVerdict) {
+        await createUser(user)
+        await ctx.reply('Юзер проверен')
+        return
+      }
+
+      await ctx.restrictChatMember(user.id, { can_send_messages: false })
+      await createUser(user, { restricted: true })
+      console.info(`The user ${user.id} has been restricted`)
+
+      const message = [
+        `Выдал read-only ${generateUserLink(user)} (\`${user.id}\`)`,
+        !trustAnalytics && `*Проверка через TrustAPI не пройдена*`,
+        trustAnalytics && generateTrustAnalyticsSummary(trustAnalytics),
+      ]
+        .filter(Boolean)
+        .join('\n')
+
+      const keyboard = new InlineKeyboard().text(
+        'Разблокировать',
+        `unblock ${user.id}`,
+      )
+
+      await sendLog(message, { keyboard })
+
+      try {
+        await ctx.forwardMessage(env.telegram.logChannelId)
+      } catch {
+        console.info('Failed to forward message')
+      }
+
+      await ctx.deleteMessage()
+
+      if (config.removeMessages && messageId) {
+        await bot.api.deleteMessage(
+          `@${env.telegram.chatUsername}`,
+          messageId,
+        )
+      }
+    } catch (error) {
+      const errorDetails =
+        error instanceof TrustAPIException
+          ? `Code: \`${error.code}\``
+          : 'Неизвестная ошибка'
+
+      const message = [
+        `Не удалось проверить юзера`,
         `Payload: \`${JSON.stringify(payload)}\``,
         errorDetails,
       ].join('\n')
