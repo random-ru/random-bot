@@ -509,7 +509,6 @@ ${JSON.stringify(trustAnalytics, null, 2)}
       }
 
       if (isAllowedVerdict) {
-        await ctx.reply('Юзер проверен')
         return
       }
 
