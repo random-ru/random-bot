@@ -8,6 +8,6 @@ export const api = wretch(env.api.trust.url)
   .auth(env.api.trust.token)
   .catcherFallback(async (error) => {
     const isException = error.json?.code
-    if (!isException) throw new Error('Not an exception')
+    if (!isException) throw error
     throw new TrustAPIException(error.json.code)
   })
