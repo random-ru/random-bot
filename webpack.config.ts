@@ -21,7 +21,7 @@ const config: webpack.Configuration = {
     nodeEnv: false,
   },
   resolve: {
-    extensions: ['.ts', '.js'],
+    extensions: ['.ts', '.js', '.tsx'],
     plugins: [
       new TsconfigPathsPlugin({
         configFile: path.resolve(__dirname, './tsconfig.json'),
@@ -31,7 +31,7 @@ const config: webpack.Configuration = {
   module: {
     rules: [
       {
-        test: /.ts$/,
+        test: /.tsx?$/,
         use: [
           {
             loader: 'ts-loader',

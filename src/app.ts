@@ -6,7 +6,8 @@ import { TrustAnalytics, TrustVerdict } from '@shared/api/trust/types'
 import { prisma } from '@shared/db'
 import { env } from '@shared/env'
 import { createMemoryCache } from '@shared/lib/cache'
-import { Bot, Context, InlineKeyboard } from 'grammy'
+import { createReportPDF } from '@shared/report/pdf'
+import { Bot, Context, InlineKeyboard, InputFile } from 'grammy'
 import { ChatMember, User as TelegramUser } from 'grammy/types'
 import { z } from 'zod'
 
@@ -294,7 +295,7 @@ const BanCommandSchema = z.object({
 
 const AnalyzeCommandSchema = z.object({
   command: z.literal('analyze'),
-  args: z.tuple([TelegramIdOrSourceSchema]),
+  args: z.tuple([TelegramIdOrSourceSchema, z.enum(['json', 'pdf'])]),
 })
 
 const CheckCommandSchema = z.object({
@@ -422,7 +423,7 @@ async function handleCommand(ctx: Context, command: string, args: string[]) {
   }
 
   if (parse.data.command === 'analyze') {
-    const [telegramIdOrSource] = parse.data.args
+    const [telegramIdOrSource, reportType] = parse.data.args
     const telegramId = await getTelegramId(ctx, telegramIdOrSource)
 
     const messageId =
@@ -447,14 +448,34 @@ async function handleCommand(ctx: Context, command: string, args: string[]) {
       console.info('TrustAnalytics calculated')
       printJSON(trustAnalytics)
 
-      await ctx.reply(
-        `TrustAnalytics:
+      switch (reportType) {
+        default:
+        case 'json': {
+          await ctx.reply(
+            `TrustAnalytics:
 
 \`\`\`json
 ${JSON.stringify(trustAnalytics, null, 2)}
 \`\`\``,
-        { parse_mode: 'Markdown' },
-      )
+            { parse_mode: 'Markdown' },
+          )
+          break
+        }
+        case 'pdf': {
+          const pdfFileBuffer = await createReportPDF(trustAnalytics)
+          await ctx.replyWithDocument(
+            new InputFile(
+              pdfFileBuffer,
+              `TrustReport_${telegramId}_${new Date(
+                trustAnalytics.report_creation_date * 1000,
+              ).toLocaleString()}.pdf`,
+            ),
+            {
+              allow_sending_without_reply: true,
+            },
+          )
+        }
+      }
     } catch (error) {
       const errorDetails =
         error instanceof TrustAPIException

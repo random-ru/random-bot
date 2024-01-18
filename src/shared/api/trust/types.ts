@@ -11,4 +11,5 @@ export enum TrustVerdict {
 export interface TrustAnalytics {
   accuracy: number
   verdict: TrustVerdict
+  report_creation_date: number
 }
