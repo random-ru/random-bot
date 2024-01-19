@@ -10,23 +10,24 @@ import {
   View,
 } from '@react-pdf/renderer'
 import { TrustAnalytics } from '@shared/api/trust/types'
+import { toUpperCaseFirst } from '@shared/lib/strings'
 import { ChatMember } from 'grammy/types'
 
 const FONT_PT_SANS = 'PT Sans'
 const FONT_PT_SANS_NARROW = 'PT Sans Narrow'
 Font.register({
   family: FONT_PT_SANS,
-  src: path.join(process.cwd(), 'fonts', 'PTSans-Regular.ttf'),
+  src: path.join(process.cwd(), 'assets', 'PTSans-Regular.ttf'),
   fontWeight: 'normal',
 })
 Font.register({
   family: FONT_PT_SANS,
-  src: path.join(process.cwd(), 'fonts', 'PTSans-Bold.ttf'),
+  src: path.join(process.cwd(), 'assets', 'PTSans-Bold.ttf'),
   fontWeight: 'bold',
 })
 Font.register({
   family: FONT_PT_SANS_NARROW,
-  src: path.join(process.cwd(), 'fonts', 'PTSansNarrow-Regular.ttf'),
+  src: path.join(process.cwd(), 'assets', 'PTSansNarrow-Regular.ttf'),
 })
 Font.registerEmojiSource({
   format: 'png',
@@ -116,18 +117,69 @@ const styles = StyleSheet.create({
     lineHeight: 1,
     marginBottom: 2,
   },
+  alignLeft: {
+    textAlign: 'left',
+    alignSelf: 'flex-start',
+  },
+  eSigWrapper: {
+    width: '9.5cm',
+    alignItems: 'center',
+    marginTop: 30,
+  },
+  eSig: {
+    borderWidth: 2,
+    borderColor: '#4c40d2',
+    borderStyle: 'solid',
+    borderRadius: 10,
+    width: 160,
+    padding: 2,
+    flexDirection: 'row',
+  },
+  eSigStamp: {
+    width: 32,
+    marginRight: 2,
+    flexBasis: 32,
+    flexShrink: 0,
+    flexGrow: 0,
+  },
+  eSigData: {},
+  eSigTitle: {
+    fontFamily: FONT_PT_SANS_NARROW,
+    color: '#4c40d2',
+    fontSize: 8,
+    lineHeight: 1.1,
+  },
+  eSigInfo: {
+    fontFamily: FONT_PT_SANS_NARROW,
+    color: '#4c40d2',
+    fontSize: 8,
+    lineHeight: 1.1,
+  },
 })
 
 interface ReportDocumentProps {
   user: ChatMember
   trustAnalytics: TrustAnalytics
+  // profilePicURL: string
 }
 const ReportDocument = ({ trustAnalytics, user }: ReportDocumentProps) => {
-  const { factors, trust_factor, accuracy, verdict, report_creation_date } =
-    trustAnalytics
+  const {
+    factors,
+    trust_factor,
+    accuracy,
+    verdict,
+    report_creation_date,
+
+    issuer,
+  } = trustAnalytics
   const generationDateString = new Date(
     report_creation_date * 1000,
   ).toLocaleString('ru-RU', {
+    timeZone: 'Europe/Moscow',
+    timeStyle: 'short',
+    dateStyle: 'short',
+  })
+  const responseDateString = new Date().toLocaleString('ru-RU', {
     timeZone: 'Europe/Moscow',
     timeStyle: 'short',
     dateStyle: 'short',
@@ -147,10 +199,7 @@ const ReportDocument = ({ trustAnalytics, user }: ReportDocumentProps) => {
           Generated on the {generationDateString}
         </Text>
         <View style={styles.userProfile}>
-          <Image
-            src={'https://avatars.githubusercontent.com/u/4393143?v=4'}
-            style={styles.avatar}
-          />
+          {/* <Image src={profilePicURL} style={styles.avatar} /> */}
           <View style={styles.userInfo}>
             <Text style={styles.fullName}>{fullName}</Text>
             <Text style={styles.userID}>ID: {user.user.id}</Text>
@@ -182,8 +231,11 @@ const ReportDocument = ({ trustAnalytics, user }: ReportDocumentProps) => {
           <View style={styles.factorsCol}>
             <Text style={styles.factorsHeaderCell}>Sampler</Text>
             {factors.map((factor) => (
-              <Text key={factor.sampler} style={styles.factorsBodyCell}>
-                {factor.sampler}
+              <Text
+                key={factor.sampler}
+                style={[styles.factorsBodyCell, styles.alignLeft]}
+              >
+                {toUpperCaseFirst(factor.sampler)}
               </Text>
             ))}
           </View>
@@ -210,6 +262,22 @@ const ReportDocument = ({ trustAnalytics, user }: ReportDocumentProps) => {
                 {factor.accuracy}%
               </Text>
             ))}
+          </View>
+        </View>
+        <View style={styles.eSigWrapper}>
+          <View style={styles.eSig}>
+            <Image style={styles.eSigStamp} src={'assets/stamp.png'} />
+            <View style={styles.eSigData}>
+              <Text style={styles.eSigTitle}>
+                Document is e-Signed with certificate:
+              </Text>
+              <Text style={styles.eSigInfo}>{issuer.id}</Text>
+              <Text style={styles.eSigInfo}>
+                Owner ID: {issuer.issuer_user_id}
+              </Text>
+              <Text style={styles.eSigInfo}>Date: {responseDateString}</Text>
+              <Text style={styles.eSigInfo}>Report ID: {issuer.report_id}</Text>
+            </View>
           </View>
         </View>
       </Page>
