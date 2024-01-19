@@ -230,7 +230,9 @@ const ReportDocument = ({
         <Text style={styles.sectionTitle}>Factors</Text>
         <View style={styles.factorsTable}>
           <View style={styles.factorsCol}>
-            <Text style={styles.factorsHeaderCell}>Sampler</Text>
+            <Text style={[styles.factorsHeaderCell, styles.alignLeft]}>
+              Sampler
+            </Text>
             {factors.map((factor) => (
               <Text
                 key={factor.sampler}
