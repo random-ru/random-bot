@@ -52,12 +52,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   logo: { width: 100 },
-  reportGenerationTime: {
-    fontFamily: FONT_PT_SANS_NARROW,
-    fontSize: 10,
-    lineHeight: 1,
-    marginBottom: 8,
-  },
   userProfile: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
@@ -192,11 +186,6 @@ const ReportDocument = ({
     timeStyle: 'short',
     dateStyle: 'short',
   })
-  const responseDateString = new Date().toLocaleString('ru-RU', {
-    timeZone: 'Europe/Moscow',
-    timeStyle: 'short',
-    dateStyle: 'short',
-  })
   const fullName = [user.user.first_name, user.user.last_name].join(' ')
 
   return (
@@ -208,9 +197,6 @@ const ReportDocument = ({
             style={styles.logo}
           />
         </View>
-        <Text style={styles.reportGenerationTime}>
-          Generated on the {generationDateString}
-        </Text>
         <View style={styles.userProfile}>
           <Image src={Buffer.from(profilePic)} style={styles.avatar} />
           <View style={styles.userInfo}>
@@ -288,7 +274,7 @@ const ReportDocument = ({
               </Text>
               <Text style={styles.eSigInfo}>{issuer.id}</Text>
               <Text style={styles.eSigInfo}>Context: {contextId}</Text>
-              <Text style={styles.eSigInfo}>Date: {responseDateString}</Text>
+              <Text style={styles.eSigInfo}>Date: {generationDateString}</Text>
               <Text style={styles.eSigInfo}>Report ID: {issuer.report_id}</Text>
             </View>
           </View>
