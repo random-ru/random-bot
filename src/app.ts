@@ -425,6 +425,7 @@ async function handleCommand(ctx: Context, command: string, args: string[]) {
   if (parse.data.command === 'analyze') {
     const [telegramIdOrSource, reportType] = parse.data.args
     const telegramId = await getTelegramId(ctx, telegramIdOrSource)
+    const chatMember = await ctx.getChatMember(telegramId)
 
     const messageId =
       telegramIdOrSource === 'reply'
@@ -462,13 +463,14 @@ ${JSON.stringify(trustAnalytics, null, 2)}
           break
         }
         case 'pdf': {
-          const pdfFileBuffer = await createReportPDF(trustAnalytics)
+          const pdfFileBuffer = await createReportPDF(
+            trustAnalytics,
+            chatMember,
+          )
           await ctx.replyWithDocument(
             new InputFile(
               pdfFileBuffer,
-              `TrustReport_${telegramId}_${new Date(
-                trustAnalytics.report_creation_date * 1000,
-              ).toLocaleString()}.pdf`,
+              `TrustReport_${telegramId}_${trustAnalytics.report_creation_date}.pdf`,
             ),
             {
               allow_sending_without_reply: true,
