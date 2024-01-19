@@ -463,9 +463,14 @@ ${JSON.stringify(trustAnalytics, null, 2)}
           break
         }
         case 'pdf': {
+          const profilePic = await TrustAPI.getTelegramAvatar({
+            userId: telegramId,
+          })
           const pdfFileBuffer = await createReportPDF(
             trustAnalytics,
             chatMember,
+            profilePic,
+            env.telegram.chatUsername,
           )
           await ctx.replyWithDocument(
             new InputFile(

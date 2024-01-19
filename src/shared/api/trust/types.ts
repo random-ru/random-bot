@@ -38,7 +38,7 @@ export interface Point {
 }
 
 export interface Issuer {
-  issuer_user_id: number
+  service_account_id: string
   id: string
   report: Report
   report_id: string
@@ -50,6 +50,7 @@ export interface Report {
   discover: Discover
   trust_report: TrustReport
   user_id: number
+  raw_message_id: number
   issuer_id: string
 }
 

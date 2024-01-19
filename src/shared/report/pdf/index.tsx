@@ -15,6 +15,13 @@ import { ChatMember } from 'grammy/types'
 
 const FONT_PT_SANS = 'PT Sans'
 const FONT_PT_SANS_NARROW = 'PT Sans Narrow'
+const FONT_ROBOTO = 'Roboto'
+
+Font.register({
+  family: FONT_ROBOTO,
+  src: path.join(process.cwd(), 'assets', 'Roboto-Regular.ttf'),
+  fontWeight: 'normal',
+})
 Font.register({
   family: FONT_PT_SANS,
   src: path.join(process.cwd(), 'assets', 'PTSans-Regular.ttf'),
@@ -62,7 +69,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   userInfo: {},
-  fullName: { fontFamily: FONT_PT_SANS, fontSize: 12, lineHeight: 1 },
+  fullName: { fontFamily: FONT_ROBOTO, fontSize: 12, lineHeight: 1 },
   userID: { fontFamily: FONT_PT_SANS, fontSize: 10, lineHeight: 1 },
   username: { fontFamily: FONT_PT_SANS, fontSize: 10, lineHeight: 1 },
   sectionTitle: {
@@ -160,18 +167,24 @@ const styles = StyleSheet.create({
 interface ReportDocumentProps {
   user: ChatMember
   trustAnalytics: TrustAnalytics
-  // profilePicURL: string
+  profilePic: ArrayBuffer
+  contextId: string
 }
-const ReportDocument = ({ trustAnalytics, user }: ReportDocumentProps) => {
+const ReportDocument = ({
+  trustAnalytics,
+  user,
+  profilePic,
+  contextId,
+}: ReportDocumentProps) => {
   const {
     factors,
     trust_factor,
     accuracy,
     verdict,
     report_creation_date,
-
     issuer,
   } = trustAnalytics
+  const maxScore = factors.reduce((acc, curr) => acc + curr.max_score, 0)
   const generationDateString = new Date(
     report_creation_date * 1000,
   ).toLocaleString('ru-RU', {
@@ -199,7 +212,7 @@ const ReportDocument = ({ trustAnalytics, user }: ReportDocumentProps) => {
           Generated on the {generationDateString}
         </Text>
         <View style={styles.userProfile}>
-          {/* <Image src={profilePicURL} style={styles.avatar} /> */}
+          <Image src={Buffer.from(profilePic)} style={styles.avatar} />
           <View style={styles.userInfo}>
             <Text style={styles.fullName}>{fullName}</Text>
             <Text style={styles.userID}>ID: {user.user.id}</Text>
@@ -219,7 +232,9 @@ const ReportDocument = ({ trustAnalytics, user }: ReportDocumentProps) => {
           </View>
           <View style={styles.col}>
             <Text style={styles.summaryHeaderCell}>TrustFactor</Text>
-            <Text style={styles.summaryBodyCell}>{trust_factor}/100</Text>
+            <Text style={styles.summaryBodyCell}>
+              {trust_factor}/{maxScore}
+            </Text>
           </View>
           <View style={styles.col}>
             <Text style={styles.summaryHeaderCell}>Accuracy</Text>
@@ -272,9 +287,7 @@ const ReportDocument = ({ trustAnalytics, user }: ReportDocumentProps) => {
                 Document is e-Signed with certificate:
               </Text>
               <Text style={styles.eSigInfo}>{issuer.id}</Text>
-              <Text style={styles.eSigInfo}>
-                Owner ID: {issuer.issuer_user_id}
-              </Text>
+              <Text style={styles.eSigInfo}>Context: {contextId}</Text>
               <Text style={styles.eSigInfo}>Date: {responseDateString}</Text>
               <Text style={styles.eSigInfo}>Report ID: {issuer.report_id}</Text>
             </View>
@@ -287,8 +300,15 @@ const ReportDocument = ({ trustAnalytics, user }: ReportDocumentProps) => {
 export function createReportPDF(
   trustAnalytics: TrustAnalytics,
   chatMember: ChatMember,
+  profilePic: ArrayBuffer,
+  contextId: string,
 ) {
   return renderToBuffer(
-    <ReportDocument trustAnalytics={trustAnalytics} user={chatMember} />,
+    <ReportDocument
+      trustAnalytics={trustAnalytics}
+      user={chatMember}
+      profilePic={profilePic}
+      contextId={contextId}
+    />,
   )
 }

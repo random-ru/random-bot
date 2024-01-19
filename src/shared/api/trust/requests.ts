@@ -13,3 +13,14 @@ export const getTrustAnalytics = (payload: GetTrustAnalyticsPayload) => {
     .get()
     .json<TrustAnalytics>()
 }
+
+export interface GetTelegramAvatarPayload {
+  userId: number
+}
+
+export const getTelegramAvatar = (payload: GetTelegramAvatarPayload) => {
+  return api
+    .url(`/fs/avatar/${payload.userId}/fullsize.jpg`)
+    .get()
+    .arrayBuffer()
+}
