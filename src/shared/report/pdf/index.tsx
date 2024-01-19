@@ -9,14 +9,20 @@ import {
   Text,
   View,
 } from '@react-pdf/renderer'
-import { TrustAnalytics } from '@shared/api/trust/types'
+import { TrustAnalytics, TrustVerdict } from '@shared/api/trust/types'
 import { toUpperCaseFirst } from '@shared/lib/strings'
 import { ChatMember } from 'grammy/types'
 
 const FONT_PT_SANS = 'PT Sans'
 const FONT_PT_SANS_NARROW = 'PT Sans Narrow'
 const FONT_ROBOTO = 'Roboto'
+const FONT_TINOS = 'Tinos'
 
+Font.register({
+  family: FONT_TINOS,
+  src: path.join(process.cwd(), 'assets', 'Tinos-Bold.ttf'),
+  fontWeight: 'bold',
+})
 Font.register({
   family: FONT_ROBOTO,
   src: path.join(process.cwd(), 'assets', 'Roboto-Regular.ttf'),
@@ -41,80 +47,108 @@ Font.registerEmojiSource({
   url: 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/',
 })
 
+const VerdictColors: Record<TrustVerdict, string> = {
+  AwfulStage: 'red',
+  BadStage: 'darkred',
+  LowerStage: 'indianred',
+  GoodStage: 'yellow',
+  PerfectStage: 'lawngreen',
+  VerifiedStage: 'mediumpurple',
+  CertifiedStage: 'mediumpurple',
+}
+
 const styles = StyleSheet.create({
   page: {
     backgroundColor: '#fff',
-    margin: '0.5cm',
+    margin: '1cm',
   },
   logoWrapper: {
-    width: '9.5cm',
+    width: '13cm',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  logo: { width: 100 },
+  logo: { width: 140 },
+  verdictBigWrapper: {
+    position: 'absolute',
+    right: 40,
+    top: 70,
+    transform: 'rotate(-35deg)',
+    borderWidth: 3,
+    borderStyle: 'solid',
+    paddingHorizontal: 4,
+  },
+  verdictBig: {
+    fontSize: 36,
+    fontFamily: FONT_TINOS,
+    textTransform: 'uppercase',
+    fontWeight: 'bold',
+  },
   userProfile: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
+    marginBottom: 32,
+    marginTop: 20,
   },
   avatar: {
-    width: 36,
-    height: 36,
+    width: 56,
+    height: 56,
     borderRadius: '50%',
-    marginRight: 8,
+    marginRight: 12,
   },
-  userInfo: {},
-  fullName: { fontFamily: FONT_ROBOTO, fontSize: 12, lineHeight: 1 },
-  userID: { fontFamily: FONT_PT_SANS, fontSize: 10, lineHeight: 1 },
-  username: { fontFamily: FONT_PT_SANS, fontSize: 10, lineHeight: 1 },
+  userInfo: { height: 56, justifyContent: 'space-evenly' },
+  fullName: { fontFamily: FONT_ROBOTO, fontSize: 16, lineHeight: 1 },
+  userID: { fontFamily: FONT_PT_SANS, fontSize: 14, lineHeight: 1 },
+  username: { fontFamily: FONT_PT_SANS, fontSize: 14, lineHeight: 1 },
   sectionTitle: {
     fontFamily: FONT_PT_SANS,
-    fontSize: 16,
+    fontSize: 20,
     lineHeight: 1,
     fontWeight: 'bold',
     textAlign: 'center',
-    width: '9.5cm',
-    marginBottom: 8,
-    marginTop: 16,
+    width: '13cm',
+    marginBottom: 14,
   },
   table: {
     flexDirection: 'row',
     justifyContent: 'space-evenly',
-    width: '9.5cm',
+    width: '13cm',
+    marginBottom: 24,
   },
   col: {
     alignItems: 'center',
   },
   summaryHeaderCell: {
     fontFamily: FONT_PT_SANS,
-    fontSize: 12,
+    fontSize: 14,
     lineHeight: 1,
     marginBottom: 6,
   },
   summaryBodyCell: {
     fontFamily: FONT_PT_SANS,
-    fontSize: 14,
+    fontSize: 18,
     lineHeight: 1,
     fontWeight: 'bold',
   },
   factorsTable: {
     flexDirection: 'row',
     justifyContent: 'center',
-    width: '9.5cm',
+    width: '13cm',
+    marginBottom: 24,
   },
   factorsCol: {
     alignItems: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 10,
   },
   factorsHeaderCell: {
     fontFamily: FONT_PT_SANS,
-    fontSize: 12,
+    fontSize: 14,
     lineHeight: 1,
     marginBottom: 4,
     fontWeight: 'bold',
   },
   factorsBodyCell: {
     fontFamily: FONT_PT_SANS,
-    fontSize: 12,
+    fontSize: 14,
     lineHeight: 1,
     marginBottom: 2,
   },
@@ -123,7 +157,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   eSigWrapper: {
-    width: '9.5cm',
+    width: '13cm',
     alignItems: 'center',
     marginTop: 30,
   },
@@ -132,14 +166,15 @@ const styles = StyleSheet.create({
     borderColor: '#4c40d2',
     borderStyle: 'solid',
     borderRadius: 10,
-    width: 160,
-    padding: 2,
+    width: 230,
+    padding: 3,
     flexDirection: 'row',
+    alignItems: 'center',
   },
   eSigStamp: {
-    width: 32,
-    marginRight: 2,
-    flexBasis: 32,
+    width: 40,
+    marginRight: 3,
+    flexBasis: 40,
     flexShrink: 0,
     flexGrow: 0,
   },
@@ -147,13 +182,13 @@ const styles = StyleSheet.create({
   eSigTitle: {
     fontFamily: FONT_PT_SANS_NARROW,
     color: '#4c40d2',
-    fontSize: 8,
+    fontSize: 12,
     lineHeight: 1.1,
   },
   eSigInfo: {
     fontFamily: FONT_PT_SANS_NARROW,
     color: '#4c40d2',
-    fontSize: 8,
+    fontSize: 12,
     lineHeight: 1.1,
   },
 })
@@ -187,10 +222,30 @@ const ReportDocument = ({
     dateStyle: 'short',
   })
   const fullName = [user.user.first_name, user.user.last_name].join(' ')
+  const verdictShort = verdict.replace(/Stage/i, '')
 
   return (
     <Document>
-      <Page size="A6" style={styles.page}>
+      <Page size="A5" style={styles.page}>
+        <View
+          style={[
+            styles.verdictBigWrapper,
+            {
+              borderColor: VerdictColors[verdict],
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.verdictBig,
+              {
+                color: VerdictColors[verdict],
+              },
+            ]}
+          >
+            {verdictShort}
+          </Text>
+        </View>
         <View style={styles.logoWrapper}>
           <Image
             src={'https://trust-tg-app.0xf6.moe/logo-group.png'}
@@ -212,8 +267,15 @@ const ReportDocument = ({
         <View style={styles.table}>
           <View style={styles.col}>
             <Text style={styles.summaryHeaderCell}>Verdict</Text>
-            <Text style={styles.summaryBodyCell}>
-              {verdict.replace(/Stage/i, '')}
+            <Text
+              style={[
+                styles.summaryBodyCell,
+                {
+                  color: VerdictColors[verdict],
+                },
+              ]}
+            >
+              {verdictShort}
             </Text>
           </View>
           <View style={styles.col}>
