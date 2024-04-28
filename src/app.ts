@@ -102,9 +102,10 @@ function generateUserLink(
 }
 
 function generateTrustAnalyticsSummary(trustAnalytics: TrustAnalytics): string {
-  const { verdict, accuracy } = trustAnalytics
+  const { verdict, mod_trust_score, trust_score, factors } = trustAnalytics
+  const maxScore = factors.reduce((acc, curr) => acc + curr.max_score, 0)
 
-  return `Verdict: ${verdict}, Accuracy: ${Math.round(accuracy)}%`
+  return `Verdict: ${verdict}, Score: ${trust_score}+(${mod_trust_score})/${maxScore}`
 }
 
 function isAdmin(chatMember: ChatMember): boolean {
