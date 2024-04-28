@@ -23,4 +23,5 @@ export const getTelegramAvatar = (payload: GetTelegramAvatarPayload) => {
     .url(`/fs/avatar/${payload.userId}/fullsize.jpg`)
     .get()
     .arrayBuffer()
+    .catch(() => null)
 }

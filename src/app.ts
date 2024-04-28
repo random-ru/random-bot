@@ -1,4 +1,5 @@
 import { User } from '@prisma/client'
+import { FakeIMGAPI } from '@shared/api/fakeimg'
 import { TrustAPI } from '@shared/api/trust'
 import { TrustAPIException } from '@shared/api/trust/exceptions'
 import { GetTrustAnalyticsPayload } from '@shared/api/trust/requests'
@@ -463,9 +464,21 @@ ${JSON.stringify(trustAnalytics, null, 2)}
           break
         }
         case 'pdf': {
-          const profilePic = await TrustAPI.getTelegramAvatar({
-            userId: telegramId,
-          })
+          const profilePics = await Promise.all([
+            TrustAPI.getTelegramAvatar({
+              userId: telegramId,
+            }),
+            FakeIMGAPI.getInitialsPlaceholderAvatar({
+              firstName: chatMember.user.first_name,
+              lastName: chatMember.user.last_name,
+            }),
+          ])
+
+          const profilePic = profilePics.find(Boolean)
+          if (!profilePic) {
+            throw new Error('Failed to get any avatar')
+          }
+
           const pdfFileBuffer = await createReportPDF(
             trustAnalytics,
             chatMember,
