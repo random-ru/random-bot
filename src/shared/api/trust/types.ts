@@ -9,32 +9,29 @@ export enum TrustVerdict {
 }
 
 export interface TrustAnalytics {
-  accuracy: number
-  verdict: TrustVerdict
-  report_creation_date: number
-  trust_factor: number
+  trust_score: number
+  mod_trust_score: number
   user_id: number
+  report_creation_date: number
+  verdict: TrustVerdict
+  factors: Factor[]
   correction_version: number
   issuer: Issuer
-  factors: Factor[]
 }
 
 export interface Factor {
   sampler: string
   score: number
-  accuracy: number
+  additional_score: number
   max_score: number
   expando?: Expando
 }
 
 export interface Expando {
-  gradient: Point
-  polynomial: Point
-}
-
-export interface Point {
-  s: number
-  t: string
+  gradient_date: number
+  gradient_time: string
+  polynomial_date: number
+  polynomial_time: string
 }
 
 export interface Issuer {
@@ -48,7 +45,6 @@ export interface Issuer {
 export interface Report {
   id: string
   discover: Discover
-  trust_report: TrustReport
   user_id: number
   raw_message_id: number
   issuer_id: string
@@ -57,14 +53,4 @@ export interface Report {
 export interface Discover {
   message_id: number
   user_id: number
-}
-
-export interface TrustReport {
-  user_id: number
-  report_record_id: string
-  id: string
-  factors: Factor[]
-  accuracy: number
-  report_creation_date: number
-  verdict: string
 }

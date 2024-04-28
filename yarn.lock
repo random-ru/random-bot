@@ -822,6 +822,7 @@ __metadata:
   dependencies:
     "@prisma/client": "npm:^5.6.0"
     "@react-pdf/renderer": "npm:^3.2.1"
+    "@types/emoji-strip": "npm:^1.0.2"
     "@types/eslint": "npm:^8"
     "@types/node": "npm:^20.10.3"
     "@types/react": "npm:^18"
@@ -829,6 +830,7 @@ __metadata:
     "@types/webpack-node-externals": "npm:^3.0.4"
     concurrently: "npm:^8.2.2"
     dotenv-cli: "npm:^7.3.0"
+    emoji-strip: "npm:^1.0.1"
     esbuild: "npm:^0.19.8"
     eslint: "npm:^8.55.0"
     eslint-kit: "npm:^10.6.0"
@@ -1042,6 +1044,13 @@ __metadata:
   version: 1.0.4
   resolution: "@tsconfig/node16@npm:1.0.4"
   checksum: 05f8f2734e266fb1839eb1d57290df1664fe2aa3b0fdd685a9035806daa635f7519bf6d5d9b33f6e69dd545b8c46bd6e2b5c79acb2b1f146e885f7f11a42a5bb
+  languageName: node
+  linkType: hard
+
+"@types/emoji-strip@npm:^1.0.2":
+  version: 1.0.2
+  resolution: "@types/emoji-strip@npm:1.0.2"
+  checksum: 2fe8b1b8f115e9b6ed161a025a79e27d400417f832f574e28f9dcc59eb9ce68247d63a21cab10e5cd83591486e21adb78b24b3451fa198e690bfbf6d9e637e4d
   languageName: node
   linkType: hard
 
@@ -2412,6 +2421,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"emoji-regex@npm:^6.1.3":
+  version: 6.5.1
+  resolution: "emoji-regex@npm:6.5.1"
+  checksum: 3b10dc0f94a22cec77bd9822fdc3e2fee8b897a742976c060a7463451ec6298d6e7154df37c117c54f5808910dc402808b41e75088a984c35ba2315cca5eeec8
+  languageName: node
+  linkType: hard
+
 "emoji-regex@npm:^8.0.0":
   version: 8.0.0
   resolution: "emoji-regex@npm:8.0.0"
@@ -2423,6 +2439,15 @@ __metadata:
   version: 9.2.2
   resolution: "emoji-regex@npm:9.2.2"
   checksum: af014e759a72064cf66e6e694a7fc6b0ed3d8db680427b021a89727689671cefe9d04151b2cad51dbaf85d5ba790d061cd167f1cf32eb7b281f6368b3c181639
+  languageName: node
+  linkType: hard
+
+"emoji-strip@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "emoji-strip@npm:1.0.1"
+  dependencies:
+    emoji-regex: "npm:^6.1.3"
+  checksum: e0f50362d97ce79afcfde0ad8de881e0f3955da6ef12374e79447e580b50c556ac57a5a70d09b80c1d08fe0d9baf865889580efaf3fb45f50478569861e67a12
   languageName: node
   linkType: hard
 

@@ -1,3 +1,4 @@
+import { randomInt } from 'crypto'
 import path from 'path'
 import {
   Document,
@@ -70,9 +71,6 @@ const styles = StyleSheet.create({
   logo: { width: 140 },
   verdictBigWrapper: {
     position: 'absolute',
-    right: 40,
-    top: 70,
-    transform: 'rotate(-35deg)',
     borderWidth: 3,
     borderStyle: 'solid',
     paddingHorizontal: 4,
@@ -139,6 +137,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 10,
   },
+  factorsColRight: {
+    alignItems: 'flex-end',
+  },
   factorsHeaderCell: {
     fontFamily: FONT_PT_SANS,
     fontSize: 14,
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
     fontFamily: FONT_PT_SANS,
     fontSize: 14,
     lineHeight: 1,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   alignLeft: {
     textAlign: 'left',
@@ -207,8 +208,8 @@ const ReportDocument = ({
 }: ReportDocumentProps) => {
   const {
     factors,
-    trust_factor,
-    accuracy,
+    trust_score,
+    mod_trust_score,
     verdict,
     report_creation_date,
     issuer,
@@ -221,8 +222,11 @@ const ReportDocument = ({
     timeStyle: 'short',
     dateStyle: 'short',
   })
-  const fullName = [user.user.first_name, user.user.last_name].join(' ')
+  const fullName = [user.user.first_name, user.user.last_name].join(' ').trim()
   const verdictShort = verdict.replace(/Stage/i, '')
+  const stampRotateDegree = randomInt(30, 40)
+  const stampTop = randomInt(65, 75)
+  const stampRight = randomInt(40, 50)
 
   return (
     <Document>
@@ -232,6 +236,9 @@ const ReportDocument = ({
             styles.verdictBigWrapper,
             {
               borderColor: VerdictColors[verdict],
+              transform: `rotate(-${stampRotateDegree}deg)`,
+              top: stampTop,
+              right: stampRight,
             },
           ]}
         >
@@ -281,12 +288,8 @@ const ReportDocument = ({
           <View style={styles.col}>
             <Text style={styles.summaryHeaderCell}>TrustFactor</Text>
             <Text style={styles.summaryBodyCell}>
-              {trust_factor}/{maxScore}
+              {trust_score}+({mod_trust_score})/{maxScore}
             </Text>
-          </View>
-          <View style={styles.col}>
-            <Text style={styles.summaryHeaderCell}>Accuracy</Text>
-            <Text style={styles.summaryBodyCell}>{accuracy}%</Text>
           </View>
         </View>
         <Text style={styles.sectionTitle}>Factors</Text>
@@ -304,7 +307,7 @@ const ReportDocument = ({
               </Text>
             ))}
           </View>
-          <View style={styles.factorsCol}>
+          <View style={[styles.factorsCol, styles.factorsColRight]}>
             <Text style={styles.factorsHeaderCell}>Score</Text>
             {factors.map((factor) => (
               <Text key={factor.sampler} style={styles.factorsBodyCell}>
@@ -312,19 +315,11 @@ const ReportDocument = ({
               </Text>
             ))}
           </View>
-          <View style={styles.factorsCol}>
+          <View style={[styles.factorsCol, styles.factorsColRight]}>
             <Text style={styles.factorsHeaderCell}>Max Score</Text>
             {factors.map((factor) => (
               <Text key={factor.sampler} style={styles.factorsBodyCell}>
                 {factor.max_score}
-              </Text>
-            ))}
-          </View>
-          <View style={styles.factorsCol}>
-            <Text style={styles.factorsHeaderCell}>Accuracy</Text>
-            {factors.map((factor) => (
-              <Text key={factor.sampler} style={styles.factorsBodyCell}>
-                {factor.accuracy}%
               </Text>
             ))}
           </View>
